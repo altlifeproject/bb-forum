@@ -70,15 +70,18 @@ async function buildTranslations(ref) {
 	const { languages } = ref;
 	const plugins = _.values(Plugins.pluginsData).filter(plugin => typeof plugin.languages === 'string');
 
-	const promises = [];
-
+	const pairs = [];
 	namespaces.forEach((namespace) => {
 		languages.forEach((language) => {
-			promises.push(buildNamespaceLanguage(language, namespace, plugins));
+			pairs.push([language, namespace]);
 		});
 	});
 
-	await Promise.all(promises);
+	// process in chunks to avoid EMFILE (too many open files)
+	const chunkSize = 50;
+	for (let i = 0; i < pairs.length; i += chunkSize) {
+		await Promise.all(pairs.slice(i, i + chunkSize).map(([lang, ns]) => buildNamespaceLanguage(lang, ns, plugins)));
+	}
 }
 
 async function buildNamespaceLanguage(lang, namespace, plugins) {
